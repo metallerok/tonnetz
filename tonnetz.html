@@ -494,7 +494,8 @@ function computeChord(){
     : q.steps.slice();
   const voicingPcs = voicing.map(s => (rootPc + s) % 12);
 
-  // Pick the primary instance of the triad: complete and closest to center.
+  // Pick the primary instance of the triad: complete, root as close to the
+  // lattice center as possible, then the most compact triangle.
   let best = null;
   for (const n of nodes){
     if (n.pc !== rootPc) continue;
@@ -505,7 +506,7 @@ function computeChord(){
     const complete = members.every(Boolean);
     const worst = Math.max(cubeDist(n.i, n.j),
       ...members.map(m => (m ? cubeDist(m.i, m.j) : 9)));
-    const score = (complete ? 0 : 100) + worst;
+    const score = (complete ? 0 : 1000) + cubeDist(n.i, n.j) * 10 + worst;
     if (!best || score < best.score) best = { score, root:n, members, complete };
   }
   const stepNode = s => (s === 0 ? best.root : best.members[q.steps.indexOf(s)]);
