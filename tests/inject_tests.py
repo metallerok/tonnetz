@@ -49,7 +49,10 @@ TEST_JS = r"""
     ok('guitar focus label', gm.length > 0 && gm.every(g => g.querySelector('.g-lbl').textContent === '♭2'));
     ok('guitar focus ring', gm.every(g => !g.querySelector('.g-focus')));
     toggleFocusPc(0, null);
-    ok('ring on focused chord tone', [...document.querySelectorAll('.g-mark.chord')].filter(g => g.querySelector('.g-focus')).length >= 1);
+    const ringed = [...document.querySelectorAll('.g-mark.chord')].filter(g => g.querySelector('.g-focus'));
+    ok('ring on focused chord tone', ringed.length >= 1);
+    ok('focus ring stays hollow', ringed.length > 0 &&
+      [...document.querySelectorAll('.g-mark.chord .g-focus')].every(r => getComputedStyle(r).fill === 'none'));
     toggleFocusPc(1, null);
     ok('chord marks unchanged', document.querySelectorAll('.g-mark.chord').length === chordCount0);
 

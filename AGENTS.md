@@ -22,7 +22,7 @@ All UI text and code comments are in English. Deployed via GitHub Pages
    tests/run_tests.sh
    ```
 
-   - `tests/inject_tests.py` generates `tmp/index-test.html` (22 assertions,
+   - `tests/inject_tests.py` generates `tmp/index-test.html` (23 assertions,
      results panel drawn top-left) and `tmp/index-scenario.html` (Guitar panel
      open + local center on ♭2) from `index.html` into `tmp/` (gitignored).
    - Then headless Firefox captures `tmp/tt-test.png`, `tmp/tt-scenario.png`,
@@ -75,9 +75,12 @@ the tonic chips.
 - `#net * { pointer-events: none }` — hit-testing is done manually on the two
   `<svg>` elements (`net`, `guitar`) from event coordinates, not via DOM events
   on shapes.
-- CSS specificity: `.g-mark.focus circle` beats `.g-focus { fill:none }`, which
-  once filled the focus ring solid and hid the degree label. Focus-kind marks
-  now get no ring at all (the cyan disc *is* the focus indication).
+- CSS specificity: `.g-mark.chord circle` / `.g-mark.blue circle` /
+  `.g-mark.focus circle` all beat a bare `.g-focus { fill:none }`, so a focus
+  ring inside a marked dot once got filled solid and painted over the degree
+  label. Fix: the ring rule is `.g-mark circle.g-focus` (equal specificity,
+  later source order). Focus-kind marks get no ring at all (the cyan disc *is*
+  the focus indication).
 - Snap Firefox quirks, see above.
 
 ## Conventions

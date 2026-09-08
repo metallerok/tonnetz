@@ -191,7 +191,9 @@ header.top{
 .g-mark.blue .g-lbl{fill:#f0ebff;stroke:rgba(11,14,19,.75)}
 .g-mark.focus .g-lbl{fill:#062530}
 .g-letter{fill:var(--faint);font-size:8px;text-anchor:middle}
-.g-focus{fill:none;stroke:var(--cyan);stroke-width:2}
+/* (0,2,1) + later source order beats the kind fillers above, so the ring
+   always stays a hollow stroke and never paints over the degree label */
+.g-mark circle.g-focus{fill:none;stroke:var(--cyan);stroke-width:2}
 
 /* ============================================================
    Footer info
