@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tonnetz — Scale-Degree Map</title>
+<style>
+/* ============================================================
+   Theme
+   ============================================================ */
+:root{
+  --bg:#0b0e13;
+  --panel:#12161e;
+  --panel2:#10141c;
+  --border:#232b38;
+  --text:#d5dbe6;
+  --dim:#8b95a7;
+  --faint:#5b6575;
+  --gold:#f2c14e;
+  --violet:#a184ff;
+  --cyan:#63c8f0;
+  --m3:#5aa7cc;   /* minor-third axis  */
+  --M3:#e08e52;   /* major-third axis  */
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:radial-gradient(1200px 620px at 50% -12%, #141a28, var(--bg));
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+[hidden]{display:none!important}
+button{font-family:inherit}
+h1,h2,p,ul{margin:0}
+
+/* ============================================================
+   Header
+   ============================================================ */
+header.top{
+  display:flex;flex-wrap:wrap;gap:14px 28px;align-items:flex-end;
+  justify-content:space-between;padding:18px 20px 14px;
+}
+.brand h1{
+  font-size:21px;font-weight:700;letter-spacing:.04em;color:#eef2f8;
+}
+.brand h1 em{font-style:normal;font-weight:400;color:var(--faint);margin-left:8px;font-size:14px;letter-spacing:.02em}
+.brand p{font-size:12.5px;color:var(--dim);margin-top:3px}
+.tonic-block{display:flex;align-items:center;gap:10px}
+.tonic-block .lbl{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.chips{display:flex;flex-wrap:wrap;gap:4px;max-width:520px}
+.chips button{
+  background:var(--panel2);border:1px solid var(--border);color:var(--dim);
+  border-radius:999px;padding:5px 9px;font-size:12px;cursor:pointer;
+  transition:border-color .15s,color .15s,background .15s;
+}
+.chips button:hover{border-color:#3a4454;color:var(--text)}
+.chips button.on{background:rgba(242,193,78,.12);border-color:var(--gold);color:var(--gold)}
+
+/* ============================================================
+   Layout
+   ============================================================ */
+.app{
+  display:grid;grid-template-columns:minmax(0,1fr) 302px;gap:14px;
+  padding:0 16px;align-items:start;
+}
+.panel{
+  background:var(--panel);border:1px solid var(--border);border-radius:14px;
+  padding:14px 16px;
+}
+.panel h2{
+  font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--faint);margin:2px 0 9px;
+}
+.panel h2:not(:first-child){margin-top:16px}
+.stage{padding:6px 6px 2px}
+.stage svg{width:100%;height:auto;display:block}
+.side{display:flex;flex-direction:column;gap:14px}
+
+/* ============================================================
+   Controls
+   ============================================================ */
+.seg{display:flex;gap:4px}
+.seg.wrap{flex-wrap:wrap}
+.seg button{
+  flex:1;background:var(--panel2);border:1px solid var(--border);color:#aab4c4;
+  padding:7px 4px;border-radius:8px;font-size:12.5px;cursor:pointer;white-space:nowrap;
+  transition:border-color .15s,color .15s,background .15s;
+}
+.seg button:hover{border-color:#3a4454;color:var(--text)}
+.seg button.on{background:rgba(242,193,78,.12);border-color:var(--gold);color:var(--gold)}
+.seg button.on.alt{background:rgba(162,132,255,.1);border-color:var(--violet);color:var(--violet)}
+.readout{
+  margin-top:10px;padding:9px 12px;background:var(--panel2);
+  border:1px solid var(--border);border-radius:9px;font-size:12.5px;color:var(--dim);
+}
+.readout .voc{font-size:16px;letter-spacing:.06em;color:#ffe6a8;margin:3px 0 2px}
+.row-between{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:9px}
+.hint{font-size:11.5px;color:var(--faint);line-height:1.45}
+.mini{
+  background:none;border:1px solid #2a3340;color:var(--dim);border-radius:7px;
+  padding:4px 9px;font-size:11.5px;cursor:pointer;white-space:nowrap;
+  transition:border-color .15s,color .15s;
+}
+.mini:hover{border-color:#3a4454;color:var(--text)}
+
+/* ============================================================
+   Tonnetz SVG
+   ============================================================ */
+#net *{pointer-events:none}
+#net{cursor:crosshair;touch-action:manipulation}
+
+.edge{stroke:#28303d;stroke-width:2;transition:stroke .2s}
+.edge.e-fifth{stroke:#2a3342}
+.edge.e-maj3{stroke:#372c22}
+.edge.e-min3{stroke:#20303a}
+.edge.hot.e-fifth{stroke:#7e8ba1}
+.edge.hot.e-maj3{stroke:var(--M3)}
+.edge.hot.e-min3{stroke:var(--m3)}
+
+.axis-line{stroke:#414b5c;stroke-width:1.2}
+.axis-txt{fill:#66717f;font-size:11px;letter-spacing:.05em}
+
+.tri{
+  fill:rgba(242,193,78,.10);stroke:var(--gold);stroke-width:2;
+  stroke-linejoin:round;transition:fill .25s;
+}
+.tri-line{stroke:var(--gold);stroke-width:6;stroke-linecap:round}
+.tri-ext{stroke:var(--gold);stroke-width:1.5;stroke-dasharray:3 5;opacity:.5}
+.ghost{fill:rgba(255,255,255,.02);stroke:#55607a;stroke-width:1.2;stroke-dasharray:4 4}
+
+.node .core{
+  fill:#141a24;stroke:#343e4e;stroke-width:1.5;
+  transition:fill .25s,stroke .25s;
+}
+.node.hov .core{stroke:#9fb0c8}
+.node.chord .core{fill:rgba(242,193,78,.16);stroke:var(--gold)}
+.node.blue .core{fill:rgba(162,132,255,.17);stroke:var(--violet)}
+.node.support .core{fill:rgba(162,132,255,.07);stroke:#3a3352}
+.node text{paint-order:stroke;stroke:#0b0e13;stroke-width:3px}
+.node .deg{
+  fill:#cfd6e4;font-size:15px;font-weight:600;text-anchor:middle;
+  transition:fill .25s;
+}
+.node .deg.small{font-size:10px}
+.node.chord .deg{fill:#ffe6a8}
+.node.blue .deg{fill:#cdbcff}
+.node .rel{fill:var(--cyan);font-size:9.5px;font-weight:600;text-anchor:middle}
+.node .rel.small{font-size:8px}
+.node .letter{fill:var(--faint);font-size:8px;text-anchor:middle}
+.node .fn{fill:var(--faint);font-size:9px;text-anchor:middle}
+.node .ring-focus{fill:none;stroke:var(--cyan);stroke-width:2;opacity:0;transition:opacity .2s}
+.node.focused .ring-focus{opacity:1}
+.node .ring-tonic{fill:none;stroke:var(--gold);stroke-width:1.2;opacity:.75}
+
+.bass-ring{transition:transform .3s cubic-bezier(.3,.7,.3,1)}
+.bass-ring circle{fill:none;stroke:#fff;stroke-width:2;opacity:.85}
+.badge{transition:transform .3s cubic-bezier(.3,.7,.3,1)}
+.badge rect{fill:var(--gold);opacity:.95;rx:4.5}
+.badge.bass rect{fill:#fff}
+.badge text{fill:#10141b;font-size:10px;font-weight:700;text-anchor:middle}
+
+.hint-int{
+  fill:#8b97ab;font-size:9.5px;font-weight:600;text-anchor:middle;
+  paint-order:stroke;stroke:#0b0e13;stroke-width:3px;
+}
+
+/* ============================================================
+   Guitar
+   ============================================================ */
+.guitar-panel{margin:14px 16px 0}
+.guitar-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.guitar-head h2{margin:0}
+#guitar{width:100%;height:auto;display:block;margin-top:4px}
+#guitar *{pointer-events:none}
+.g-string{stroke:#414c5e}
+.g-fret{stroke:#242c39;stroke-width:2}
+.g-nut{fill:#8d99ab}
+.g-inlay{fill:#1a2130}
+.g-fnum{fill:var(--faint);font-size:10px;text-anchor:middle}
+.g-plain{fill:#232b37}
+.g-mark.chord circle{fill:var(--gold)}
+.g-mark.blue circle{fill:var(--violet)}
+.g-mark.supp circle{fill:none;stroke:var(--violet);stroke-width:1.5}
+.g-lbl{fill:#171208;font-size:9px;font-weight:700;text-anchor:middle}
+.g-mark.blue .g-lbl{fill:#f0ebff}
+.g-letter{fill:var(--faint);font-size:8px;text-anchor:middle}
+.g-focus{fill:none;stroke:var(--cyan);stroke-width:2}
+
+/* ============================================================
+   Footer info
+   ============================================================ */
+footer.info{margin:14px 16px 22px}
+footer.info .cols{
+  display:grid;grid-template-columns:1fr 1fr;gap:6px 30px;
+}
+footer.info ul{list-style:none;padding:0}
+footer.info li{
+  font-size:12.5px;color:var(--dim);line-height:1.55;padding:2px 0;
+}
+footer.info li b{color:#cfd6e4;font-weight:600}
+footer.info li .ax{color:#aeb8c9}
+
+/* ============================================================
+   Tooltip
+   ============================================================ */
+#tip{
+  position:fixed;z-index:50;pointer-events:none;
+  background:#161b25;border:1px solid #2a3340;border-radius:9px;
+  padding:8px 11px;font-size:12px;line-height:1.5;color:var(--dim);
+  box-shadow:0 8px 26px rgba(0,0,0,.5);
+}
+#tip .t-deg{font-size:17px;font-weight:700;color:#eef2f8}
+#tip .t-fn{margin-top:1px}
+#tip .t-rel{color:var(--cyan)}
+#tip .t-ch{color:var(--gold)}
+#tip .t-blue{color:var(--violet)}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width:1020px){
+  .app{grid-template-columns:1fr}
+  footer.info .cols{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <h1>Tonnetz<em>· scale-degree map</em></h1>
+    <p>harmonic space in degrees (1–3–5 thinking), not note names</p>
+  </div>
+  <div class="tonic-block">
+    <span class="lbl">tonic</span>
+    <div class="chips" id="tonicRow"></div>
+  </div>
+</header>
+
+<main class="app">
+  <section class="stage panel">
+    <svg id="net" viewBox="-405 -335 810 670" role="img" aria-label="Tonnetz lattice of scale degrees"></svg>
+  </section>
+
+  <aside class="side">
+    <div class="panel">
+      <h2>Triad</h2>
+      <div class="seg" id="qualityRow"></div>
+      <div class="seg" id="inversionRow" style="margin-top:6px"></div>
+      <div class="readout" id="chordReadout"></div>
+      <div class="row-between">
+        <span class="hint" id="rootInfo"></span>
+        <button class="mini" id="resetRoot">root → 1</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Modes</h2>
+      <div class="seg" id="modeRow"></div>
+      <h2>Display</h2>
+      <div class="seg wrap" id="displayRow"></div>
+      <h2>Local center</h2>
+      <div class="row-between">
+        <span class="hint" id="focusInfo"></span>
+        <button class="mini" id="clearFocus">clear</button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<section class="panel guitar-panel" id="guitarPanel" hidden>
+  <div class="guitar-head">
+    <h2>Guitar</h2>
+    <span class="hint">standard tuning · the same highlighted degrees, mapped to the neck · click a dot to re-center</span>
+  </div>
+  <svg id="guitar" viewBox="0 0 660 214" role="img" aria-label="Guitar fretboard with highlighted degrees"></svg>
+</section>
+
+<footer class="panel info">
+  <h2>Reading the map</h2>
+  <div class="cols">
+    <ul>
+      <li><b class="ax">→ / ←</b>&nbsp; perfect fifth (P5) / fourth (P4) — the circle of fifths</li>
+      <li><b class="ax">↗ / ↙</b>&nbsp; major third (M3) / minor sixth (m6)</li>
+      <li><b class="ax">↘ / ↖</b>&nbsp; minor third (m3) / major sixth (M6)</li>
+    </ul>
+    <ul>
+      <li>upward triangles are <b>major</b> triads, downward are <b>minor</b>; diminished &amp; augmented triads are straight lines along the m3 / M3 axes</li>
+      <li>click a vertex — read everything <b>relative to it</b>; click inside a triangle — select that triad; inversions move only the bass ring, the shape stays</li>
+    </ul>
+  </div>
+</footer>
+
+<div id="tip" hidden></div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   Config & vocabulary
+   ============================================================ */
+
+// Degree names indexed by offset from the tonic (0..11).
+const DEG_NAMES = ['1','♭2','2','♭3','3','4','♯4/♭5','5','♭6','6','♭7','7'];
+// Shorter form for tight spots (guitar dots, relative labels).
+const DEG_SHORT = DEG_NAMES.slice();
+DEG_SHORT[6] = '♭5';
+// Interval quality names, indexed by semitones.
+const INT_NAMES = ['1','m2','M2','m3','M3','P4','TT','P5','m6','M6','m7','M7'];
+// Traditional function names (shown when the "Functions" toggle is on).
+const DEG_FN = {
+  0:'tonic', 1:'neapolitan', 2:'supertonic', 3:'minor 3rd', 4:'mediant',
+  5:'subdominant', 6:'tritone', 7:'dominant', 8:'minor 6th',
+  9:'submediant', 10:'subtonic', 11:'leading tone'
+};
+// Blues material: the blue notes themselves and the wider blues set.
+const BLUE_NOTES = new Set([3, 6, 10]);                 // ♭3, ♯4/♭5, ♭7
+const BLUE_SCALE = new Set([0,3,4,5,6,7,10,11]);        // 1 ♭3 3 4 ♯4 5 ♭7 7
+// Pitch letters only used when the optional "Letters" toggle is on.
+const PITCH_FLAT = ['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
+
+// Triad qualities; steps are semitones above the chord root.
+const QUALITIES = {
+  maj:{label:'Major', name:'major',      steps:[0,4,7]},
+  min:{label:'Minor', name:'minor',      steps:[0,3,7]},
+  dim:{label:'Dim',   name:'diminished', steps:[0,3,6]},
+  aug:{label:'Aug',   name:'augmented',  steps:[0,4,8]},
+  off:{label:'—',     name:null,         steps:null}
+};
+// Map a semitone step to a lattice delta (di,dj) from the chord root.
+// Lattice: +1 in i = +P5 (7 st), +1 in j = +M3 (4 st).
+const STEP_DELTA = {0:[0,0], 3:[1,-1], 4:[0,1], 6:[2,-2], 7:[1,0], 8:[0,2]};
+const INVERSION_NAMES = ['root position','1st inversion','2nd inversion'];
+
+// Guitar: standard tuning pitch classes, high e string first.
+const OPEN_STRING_PCS = [4, 11, 7, 2, 9, 4];
+const FRETS = 12;
+
+/* ============================================================
+   State
+   ============================================================ */
+
+const state = {
+  tonic: 0,          // pitch class used as "1" (drives guitar + letters)
+  quality: 'maj',    // key into QUALITIES
+  inversion: 0,      // 0 root, 1 first, 2 second
+  chordRoot: 0,      // degree offset the triad is built on
+  blues: false,
+  guitar: false,
+  focusPc: null,     // degree offset of the local center (null = off)
+  focusNode: null,   // lattice node instance carrying the focus ring
+  show: { deg:true, fn:true, int:true, links:true, letters:false }
+};
+
+/* ============================================================
+   Lattice geometry
+   ============================================================ */
+
+const RADIUS = 3;                       // hexagonal patch radius
+const SP = 92;                          // horizontal step (a fifth apart)
+const HP = SP * Math.sqrt(3) / 2;       // vertical step
+
+const nodes = [];
+const nodeMap = new Map();              // "i,j" -> node
+const edges = [];
+const edgesByNode = new Map();          // node -> [edges]
+
+function key(i, j){ return i + ',' + j; }
+function posOf(i, j){ return { x: SP * (i + j / 2), y: -HP * j }; }
+function cubeDist(i, j){ return Math.max(Math.abs(i), Math.abs(j), Math.abs(i + j)); }
+function pcOf(i, j){ return ((7 * i + 4 * j) % 12 + 12) % 12; }
+
+/* ============================================================
+   SVG helpers & static build
+   ============================================================ */
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function el(name, attrs, parent){
+  const e = document.createElementNS(SVG_NS, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function byId(id){ return document.getElementById(id); }
+
+const net = byId('net');
+
+// Layers, bottom to top.
+const defs  = el('defs', {}, net);
+const marker = el('marker', { id:'ah', viewBox:'0 0 10 10', refX:8, refY:5,
+  markerWidth:7, markerHeight:7, orient:'auto-start-reverse' }, defs);
+el('path', { d:'M0 0 L10 5 L0 10 z', fill:'#414b5c' }, marker);
+
+const gEdges     = el('g', { id:'gEdges' }, net);
+const gGhost     = el('g', {}, net);
+const gAxis      = el('g', { id:'gAxis' }, net);
+const gTri       = el('g', { id:'gTri' }, net);
+const gNodes     = el('g', { id:'gNodes' }, net);
+const gRings     = el('g', { id:'gRings' }, net);
+const gHoverInts = el('g', { id:'gHoverInts' }, net);
+
+const ghost   = el('polygon', { class:'ghost', style:'display:none' }, gGhost);
+const triExt  = el('line',  { class:'tri-ext', style:'display:none' }, gTri);
+const triLine = el('line',  { class:'tri-line', style:'display:none' }, gTri);
+const triPoly = el('polygon',{ class:'tri', style:'display:none' }, gTri);
+
+const bassRing = el('g', { class:'bass-ring', style:'display:none' }, gRings);
+el('circle', { r:30 }, bassRing);
+const badges = [];
+for (let k = 0; k < 3; k++){
+  const g = el('g', { class:'badge', style:'display:none' }, gRings);
+  el('rect', { x:-8.5, y:-8.5, width:17, height:17, rx:4.5 }, g);
+  const t = el('text', { y:3.5 }, g);
+  badges.push({ g, t });
+}
+
+// Build the hexagonal patch of nodes.
+let centerNode = null;
+for (let i = -RADIUS; i <= RADIUS; i++){
+  for (let j = -RADIUS; j <= RADIUS; j++){
+    if (cubeDist(i, j) > RADIUS) continue;
+    const p = posOf(i, j);
+    // The whole node subgroup is positioned with one transform.
+    const g = el('g', { class:'node', transform:'translate(' + p.x + ',' + p.y + ')' }, gNodes);
+    // Paint order inside <g> is bottom-up: rings, then core, then texts.
+    const node = {
+      i, j, pc: pcOf(i, j), x: p.x, y: p.y, g,
+      ringFocus: el('circle', { class:'ring-focus', r:31 }, g)
+    };
+    if (i === 0 && j === 0){
+      node.ringTonic = el('circle', { class:'ring-tonic', r:27 }, g);
+      centerNode = node;
+    }
+    el('circle', { class:'core', r:23 }, g);
+    node.deg = el('text', { class:'deg', y:-3 }, g);
+    node.rel = el('text', { class:'rel', y:11, style:'display:none' }, g);
+    node.letter = el('text', { class:'letter', x:14, y:-12 }, g);
+    node.fn = el('text', { class:'fn', y:38 }, g);
+    nodes.push(node);
+    nodeMap.set(key(i, j), node);
+  }
+}
+
+// Build edges (three canonical directions, no duplicates).
+const DIRS = [[1,0,'fifth'], [0,1,'maj3'], [1,-1,'min3']];
+for (const n of nodes){
+  for (const [di, dj, family] of DIRS){
+    const m = nodeMap.get(key(n.i + di, n.j + dj));
+    if (!m) continue;
+    const e = el('line', {
+      class:'edge e-' + family,
+      x1:n.x, y1:n.y, x2:m.x, y2:m.y
+    }, gEdges);
+    const edge = { a:n, b:m, family, el:e };
+    edges.push(edge);
+    if (!edgesByNode.has(n)) edgesByNode.set(n, []);
+    if (!edgesByNode.has(m)) edgesByNode.set(m, []);
+    edgesByNode.get(n).push(edge);
+    edgesByNode.get(m).push(edge);
+  }
+}
+
+// Axis annotations: six outward arrows labelled with the interval gained.
+const AXES = [
+  { d:[ 1, 0], name:'P5' }, { d:[-1, 0], name:'P4' },
+  { d:[ 0, 1], name:'M3' }, { d:[ 0,-1], name:'m6' },
+  { d:[ 1,-1], name:'m3' }, { d:[-1, 1], name:'M6' }
+];
+for (const ax of AXES){
+  const ux = SP * (ax.d[0] + ax.d[1] / 2);
+  const uy = -HP * ax.d[1];
+  el('line', { class:'axis-line', x1:ux*3.02, y1:uy*3.02, x2:ux*3.5, y2:uy*3.5,
+    'marker-end':'url(#ah)' }, gAxis);
+  const t = el('text', { class:'axis-txt', x:ux*3.85, y:uy*3.85,
+    'text-anchor':'middle', 'dominant-baseline':'middle' }, gAxis);
+  t.textContent = ax.name;
+}
+
+/* ============================================================
+   Chord model
+   ============================================================ */
+
+let lastChord = null;
+let lastChordSig = '';
+
+function computeChord(){
+  const q = QUALITIES[state.quality];
+  if (!q.steps) return null;
+  const rootPc = state.chordRoot;
+  const pcs = new Set(q.steps.map(s => (rootPc + s) % 12));
+  const voicing = state.inversion
+    ? q.steps.slice(state.inversion).concat(q.steps.slice(0, state.inversion))
+    : q.steps.slice();
+  const voicingPcs = voicing.map(s => (rootPc + s) % 12);
+
+  // Pick the primary instance of the triad: complete and closest to center.
+  let best = null;
+  for (const n of nodes){
+    if (n.pc !== rootPc) continue;
+    const members = q.steps.map(s => {
+      const d = STEP_DELTA[s];
+      return nodeMap.get(key(n.i + d[0], n.j + d[1]));
+    });
+    const complete = members.every(Boolean);
+    const worst = Math.max(cubeDist(n.i, n.j),
+      ...members.map(m => (m ? cubeDist(m.i, m.j) : 9)));
+    const score = (complete ? 0 : 100) + worst;
+    if (!best || score < best.score) best = { score, root:n, members, complete };
+  }
+  const stepNode = s => (s === 0 ? best.root : best.members[q.steps.indexOf(s)]);
+  return {
+    q, rootPc, pcs, voicing, voicingPcs, best, stepNode,
+    collinear: state.quality === 'dim' || state.quality === 'aug'
+  };
+}
+
+/* ============================================================
+   Rendering
+   ============================================================ */
+
+function render(){
+  const chord = computeChord();
+  lastChord = chord;
+
+  gEdges.style.display = state.show.links ? '' : 'none';
+  gAxis.style.display = state.show.int ? '' : 'none';
+
+  for (const n of nodes){
+    const isChord = chord && chord.pcs.has(n.pc);
+    const isBlue = state.blues && BLUE_NOTES.has(n.pc) && !isChord;
+    const isSupport = state.blues && BLUE_SCALE.has(n.pc) && !isChord && !BLUE_NOTES.has(n.pc);
+
+    let cls = 'node';
+    if (isChord) cls += ' chord';
+    if (isBlue) cls += ' blue';
+    if (isSupport) cls += ' support';
+    if (state.focusNode === n) cls += ' focused';
+    if (hoverNode === n) cls += ' hov';
+    n.g.setAttribute('class', cls);
+
+    const nm = DEG_NAMES[n.pc];
+    n.deg.textContent = nm;
+    n.deg.classList.toggle('small', nm.length > 2);
+    n.deg.style.display = state.show.deg ? '' : 'none';
+
+    if (state.focusPc != null && state.focusPc !== n.pc){
+      const rnm = DEG_SHORT[(n.pc - state.focusPc + 12) % 12];
+      n.rel.textContent = rnm;
+      n.rel.classList.toggle('small', rnm.length > 2);
+      n.rel.style.display = '';
+    } else {
+      n.rel.style.display = 'none';
+    }
+
+    n.fn.textContent = DEG_FN[n.pc] + (state.blues && BLUE_NOTES.has(n.pc) ? ' · blue' : '');
+    n.fn.style.display = state.show.fn ? '' : 'none';
+
+    n.letter.textContent = PITCH_FLAT[(state.tonic + n.pc) % 12];
+    n.letter.style.display = state.show.letters ? '' : 'none';
+  }
+
+  updateChordOverlay(chord);
+  updateReadout(chord);
+  updateControls();
+  if (state.guitar) renderGuitar();
+}
+
+function updateChordOverlay(chord){
+  const show = !!(chord && chord.best && chord.best.complete);
+  triPoly.style.display = (show && !chord.collinear) ? '' : 'none';
+  triLine.style.display = (show && chord.collinear) ? '' : 'none';
+  triExt.style.display = triLine.style.display;
+  bassRing.style.display = show ? '' : 'none';
+
+  if (show){
+    const b = chord.best;
+    const P = [b.root, b.members[1], b.members[2]];
+    if (chord.collinear){
+      const p0 = P[0], p2 = P[2];
+      triLine.setAttribute('x1', p0.x); triLine.setAttribute('y1', p0.y);
+      triLine.setAttribute('x2', p2.x); triLine.setAttribute('y2', p2.y);
+      const ux = (p2.x - p0.x) / 2, uy = (p2.y - p0.y) / 2, e = 0.85;
+      triExt.setAttribute('x1', p0.x - ux * e); triExt.setAttribute('y1', p0.y - uy * e);
+      triExt.setAttribute('x2', p2.x + ux * e); triExt.setAttribute('y2', p2.y + uy * e);
+    } else {
+      triPoly.setAttribute('points', P.map(p => p.x + ',' + p.y).join(' '));
+    }
+    // Voice badges: offset toward the centroid (or perpendicular on a line).
+    const cx = (P[0].x + P[1].x + P[2].x) / 3;
+    const cy = (P[0].y + P[1].y + P[2].y) / 3;
+    chord.voicing.forEach((s, k) => {
+      const n = chord.stepNode(s);
+      let ox, oy;
+      if (chord.collinear){
+        const dx = P[2].x - P[0].x, dy = P[2].y - P[0].y, L = Math.hypot(dx, dy) || 1;
+        ox = -dy / L * 31; oy = dx / L * 31;
+      } else {
+        const dx = cx - n.x, dy = cy - n.y, L = Math.hypot(dx, dy) || 1;
+        ox = dx / L * 30; oy = dy / L * 30;
+      }
+      badges[k].g.style.transform = 'translate(' + (n.x + ox) + 'px,' + (n.y + oy) + 'px)';
+      badges[k].t.textContent = k + 1;
+      badges[k].g.setAttribute('class', 'badge' + (k === 0 ? ' bass' : ''));
+    });
+    const bn = chord.stepNode(chord.voicing[0]);
+    bassRing.style.transform = 'translate(' + bn.x + 'px,' + bn.y + 'px)';
+  }
+  badges.forEach(b => { b.g.style.display = show ? '' : 'none'; });
+
+  // Quick pop when the triad definition changes.
+  const sig = chord
+    ? state.quality + '|' + state.chordRoot + '|' + state.inversion
+    : 'off';
+  if (sig !== lastChordSig && show){
+    gTri.animate([{ opacity:.2 }, { opacity:1 }], { duration:320, easing:'ease-out' });
+  }
+  lastChordSig = sig;
+}
+
+function updateReadout(chord){
+  const ro = byId('chordReadout');
+  if (!chord){
+    ro.innerHTML = '<span class="hint">no triad selected — the lattice is bare for free exploration</span>';
+  } else {
+    const voc = chord.voicingPcs.map(pc => DEG_NAMES[pc]).join(' – ');
+    ro.innerHTML =
+      '<div>' + chord.q.name + ' · root ' + DEG_NAMES[chord.rootPc] + '</div>' +
+      '<div class="voc">' + voc + '</div>' +
+      '<div>bass ' + DEG_NAMES[chord.voicingPcs[0]] + ' · ' +
+        INVERSION_NAMES[state.inversion] + '</div>';
+  }
+  byId('rootInfo').textContent = 'root: ' + DEG_NAMES[state.chordRoot] +
+    (state.chordRoot === 0 ? ' (tonic)' : ' (picked on the grid)');
+}
+
+/* ============================================================
+   Controls
+   ============================================================ */
+
+function buildButtons(rowId, items, onPick){
+  const row = byId(rowId);
+  items.forEach(it => {
+    const b = document.createElement('button');
+    b.textContent = it.label;
+    if (it.alt) b.classList.add('alt');
+    b.addEventListener('click', () => onPick(it));
+    row.appendChild(b);
+    it.btn = b;
+  });
+  return items;
+}
+
+const qualityItems = buildButtons('qualityRow',
+  Object.keys(QUALITIES).map(k => ({ id:k, label:QUALITIES[k].label })),
+  it => { state.quality = it.id; render(); });
+
+const invItems = buildButtons('inversionRow',
+  [0,1,2].map(v => ({ id:v, label:['Root','1st','2nd'][v] })),
+  it => { state.inversion = it.id; render(); });
+
+const modeItems = buildButtons('modeRow', [
+  { id:'blues',  label:'Blues',  alt:true },
+  { id:'guitar', label:'Guitar' }
+], it => {
+  state[it.id] = !state[it.id];
+  if (it.id === 'guitar') byId('guitarPanel').hidden = !state.guitar;
+  render();
+});
+
+const displayItems = buildButtons('displayRow', [
+  { id:'deg', label:'Degrees' }, { id:'fn', label:'Functions' },
+  { id:'int', label:'Intervals' }, { id:'links', label:'Links' },
+  { id:'letters', label:'Letters' }
+], it => { state.show[it.id] = !state.show[it.id]; render(); });
+
+const tonicItems = buildButtons('tonicRow',
+  DEG_NAMES.map((nm, v) => ({ id:v, label:nm })),
+  it => { state.tonic = it.id; render(); pulseTonic(); });
+
+byId('resetRoot').addEventListener('click', () => { state.chordRoot = 0; render(); });
+byId('clearFocus').addEventListener('click', clearFocus);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') clearFocus(); });
+
+function clearFocus(){
+  state.focusPc = null;
+  state.focusNode = null;
+  render();
+}
+
+function toggleFocusPc(pc, node){
+  if (state.focusPc === pc){ clearFocus(); return; }
+  state.focusPc = pc;
+  state.focusNode = node || nearestNodeWithPc(pc);
+  render();
+}
+
+function nearestNodeWithPc(pc){
+  let best = null, bs = 1e9;
+  for (const n of nodes){
+    if (n.pc !== pc) continue;
+    const s = cubeDist(n.i, n.j) * 100 + Math.abs(n.x) + Math.abs(n.y);
+    if (s < bs){ bs = s; best = n; }
+  }
+  return best;
+}
+
+function pulseTonic(){
+  if (!centerNode || !centerNode.ringTonic) return;
+  centerNode.ringTonic.animate(
+    [{ opacity:1, strokeWidth:'5px' }, { opacity:.75, strokeWidth:'1.2px' }],
+    { duration:550, easing:'ease-out' });
+}
+
+function updateControls(){
+  for (const it of qualityItems) it.btn.classList.toggle('on', state.quality === it.id);
+  for (const it of invItems) it.btn.classList.toggle('on', state.inversion === it.id);
+  for (const it of modeItems) it.btn.classList.toggle('on', state[it.id]);
+  for (const it of displayItems) it.btn.classList.toggle('on', state.show[it.id]);
+  for (const it of tonicItems) it.btn.classList.toggle('on', state.tonic === it.id);
+  byId('focusInfo').textContent = state.focusPc == null
+    ? 'none — click any vertex'
+    : 'relative to ' + DEG_NAMES[state.focusPc];
+}
+
+/* ============================================================
+   Hover: tooltip, ghost triad, edge interval labels
+   ============================================================ */
+
+const tip = byId('tip');
+let hoverNode = null;
+let tipHTML = '';
+
+function svgPoint(svgEl, e){
+  const r = svgEl.getBoundingClientRect();
+  const vb = svgEl.viewBox.baseVal;
+  const scale = Math.min(r.width / vb.width, r.height / vb.height);
+  const ox = (r.width - vb.width * scale) / 2;
+  const oy = (r.height - vb.height * scale) / 2;
+  return {
+    x: (e.clientX - r.left - ox) / scale + vb.x,
+    y: (e.clientY - r.top - oy) / scale + vb.y
+  };
+}
+
+function clearHoverFx(){
+  ghost.style.display = 'none';
+  gHoverInts.innerHTML = '';
+  for (const e of edges) e.el.classList.remove('hot');
+}
+
+function showHoverFx(n){
+  // Ghost of the major triad rooted on the hovered node (click affordance).
+  const a = nodeMap.get(key(n.i, n.j + 1));
+  const b = nodeMap.get(key(n.i + 1, n.j));
+  if (a && b){
+    ghost.setAttribute('points', n.x + ',' + n.y + ' ' + a.x + ',' + a.y + ' ' + b.x + ',' + b.y);
+    ghost.style.display = '';
+  }
+  // Interval names on all edges leaving this node.
+  for (const e of (edgesByNode.get(n) || [])){
+    e.el.classList.add('hot');
+    const other = (e.a === n) ? e.b : e.a;
+    const t = el('text', {
+      class:'hint-int', x:(e.a.x + e.b.x) / 2, y:(e.a.y + e.b.y) / 2 - 5
+    }, gHoverInts);
+    t.textContent = INT_NAMES[(other.pc - n.pc + 12) % 12];
+  }
+}
+
+function buildTipHTML(n){
+  let h = '<div class="t-deg">' + DEG_NAMES[n.pc] + '</div>';
+  let fn = DEG_FN[n.pc];
+  h += '<div class="t-fn">' + fn + '</div>';
+  if (state.blues && BLUE_NOTES.has(n.pc)) h += '<div class="t-blue">blue note</div>';
+  if (state.focusPc != null && state.focusPc !== n.pc){
+    h += '<div class="t-rel">from ' + DEG_NAMES[state.focusPc] + ': ' +
+      DEG_NAMES[(n.pc - state.focusPc + 12) % 12] + '</div>';
+  }
+  if (lastChord && lastChord.pcs.has(n.pc)){
+    h += '<div class="t-ch">chord tone — ' +
+      DEG_NAMES[(n.pc - lastChord.rootPc + 12) % 12] + ' of ' +
+      DEG_NAMES[lastChord.rootPc] + '</div>';
+  }
+  return h;
+}
+
+function positionTip(e){
+  const pad = 14;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  const r = tip.getBoundingClientRect();
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - pad;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - pad;
+  tip.style.left = x + 'px';
+  tip.style.top = y + 'px';
+}
+
+net.addEventListener('pointermove', e => {
+  const pt = svgPoint(net, e);
+  let best = null, bd = 26 * 26;
+  for (const n of nodes){
+    const dx = n.x - pt.x, dy = n.y - pt.y, d = dx * dx + dy * dy;
+    if (d < bd){ bd = d; best = n; }
+  }
+  if (best !== hoverNode){
+    if (hoverNode) hoverNode.g.classList.remove('hov');
+    clearHoverFx();
+    hoverNode = best;
+    if (hoverNode){
+      hoverNode.g.classList.add('hov');
+      showHoverFx(hoverNode);
+      tipHTML = buildTipHTML(hoverNode);
+      tip.innerHTML = tipHTML;
+      tip.hidden = false;
+    } else {
+      tip.hidden = true;
+    }
+  }
+  if (hoverNode) positionTip(e);
+});
+
+net.addEventListener('pointerleave', () => {
+  if (hoverNode) hoverNode.g.classList.remove('hov');
+  hoverNode = null;
+  clearHoverFx();
+  tip.hidden = true;
+});
+
+/* ============================================================
+   Clicks: vertex = local center, triangle = select triad
+   ============================================================ */
+
+net.addEventListener('click', e => {
+  const pt = svgPoint(net, e);
+  // Vertex hit?
+  let hit = null, hd = 27 * 27;
+  for (const n of nodes){
+    const dx = n.x - pt.x, dy = n.y - pt.y, d = dx * dx + dy * dy;
+    if (d < hd){ hd = d; hit = n; }
+  }
+  if (hit){ toggleFocusPc(hit.pc, hit); return; }
+  // Triangle hit: invert the lattice transform.
+  const beta = -pt.y / HP;
+  const alpha = pt.x / SP - beta / 2;
+  const i0 = Math.floor(alpha), j0 = Math.floor(beta);
+  const frac = alpha + beta - (i0 + j0);
+  let quality, ri, rj;
+  if (frac <= 1){ quality = 'maj'; ri = i0;     rj = j0;     }
+  else          { quality = 'min'; ri = i0;     rj = j0 + 1; }
+  const root = nodeMap.get(key(ri, rj));
+  const steps = QUALITIES[quality].steps;
+  const ok = root && steps.slice(1).every(s => {
+    const d = STEP_DELTA[s];
+    return nodeMap.get(key(ri + d[0], rj + d[1]));
+  });
+  if (ok){
+    state.quality = quality;
+    state.chordRoot = root.pc;
+    state.inversion = 0;
+    render();
+  } else {
+    clearFocus();
+  }
+});
+
+/* ============================================================
+   Guitar
+   ============================================================ */
+
+const guitar = byId('guitar');
+const NUT_X = 64, FRET_SP = 44, STR_TOP = 28, STR_GAP = 31;
+const gStatic = el('g', {}, guitar);
+const gMarkers = el('g', {}, guitar);
+let markerPts = [];
+
+(function buildGuitarStatic(){
+  // Fret wires.
+  for (let f = 1; f <= FRETS; f++){
+    el('line', { class:'g-fret', x1:NUT_X + f * FRET_SP, y1:STR_TOP - 12,
+      x2:NUT_X + f * FRET_SP, y2:STR_TOP + 5 * STR_GAP + 12 }, gStatic);
+  }
+  // Nut.
+  el('rect', { class:'g-nut', x:NUT_X - 3, y:STR_TOP - 14, width:6,
+    height:5 * STR_GAP + 28, rx:2 }, gStatic);
+  // Strings, low E at the bottom.
+  for (let s = 0; s < 6; s++){
+    el('line', { class:'g-string', x1:NUT_X - 34, y1:STR_TOP + s * STR_GAP,
+      x2:NUT_X + FRETS * FRET_SP + 16, y2:STR_TOP + s * STR_GAP,
+      'stroke-width':(2.3 - s * 0.32).toFixed(2) }, gStatic);
+  }
+  // Inlay markers.
+  for (const f of [3, 5, 7, 9]){
+    el('circle', { class:'g-inlay', cx:NUT_X + (f - 0.5) * FRET_SP,
+      cy:STR_TOP + 2.5 * STR_GAP, r:5 }, gStatic);
+  }
+  el('circle', { class:'g-inlay', cx:NUT_X + 11.5 * FRET_SP,
+    cy:STR_TOP + 2.5 * STR_GAP - 15.5, r:5 }, gStatic);
+  el('circle', { class:'g-inlay', cx:NUT_X + 11.5 * FRET_SP,
+    cy:STR_TOP + 2.5 * STR_GAP + 15.5, r:5 }, gStatic);
+  // Fret numbers.
+  for (const f of [0, 3, 5, 7, 9, 12]){
+    const t = el('text', { class:'g-fnum', y:210,
+      x:(f === 0 ? NUT_X - 22 : NUT_X + (f - 0.5) * FRET_SP) }, gStatic);
+    t.textContent = f;
+  }
+})();
+
+function renderGuitar(){
+  gMarkers.innerHTML = '';
+  markerPts = [];
+  const chordP = new Set(lastChord
+    ? [...lastChord.pcs].map(pc => (pc + state.tonic) % 12) : []);
+  const blueP = state.blues
+    ? new Set([...BLUE_NOTES].map(pc => (pc + state.tonic) % 12)) : new Set();
+  const suppP = state.blues
+    ? new Set([...BLUE_SCALE].map(pc => (pc + state.tonic) % 12)) : new Set();
+  const focusP = state.focusPc == null ? null : (state.focusPc + state.tonic) % 12;
+
+  for (let s = 0; s < 6; s++){
+    for (let f = 0; f <= FRETS; f++){
+      const pc = (OPEN_STRING_PCS[s] + f) % 12;
+      const x = (f === 0 ? NUT_X - 22 : NUT_X + (f - 0.5) * FRET_SP);
+      const y = STR_TOP + s * STR_GAP;
+      let kind = null;
+      if (chordP.has(pc)) kind = 'chord';
+      else if (blueP.has(pc)) kind = 'blue';
+      else if (suppP.has(pc)) kind = 'supp';
+
+      if (!kind){
+        el('circle', { class:'g-plain', cx:x, cy:y, r:2 }, gMarkers);
+      } else {
+        const g = el('g', { class:'g-mark ' + kind }, gMarkers);
+        el('circle', { cx:x, cy:y, r:(kind === 'supp' ? 4 : 10) }, g);
+        if (kind !== 'supp'){
+          const t = el('text', { class:'g-lbl', x:x, y:y + 3 }, g);
+          t.textContent = DEG_SHORT[(pc - state.tonic + 12) % 12];
+          if (state.show.letters){
+            const lt = el('text', { class:'g-letter', x:x, y:y - 15 }, g);
+            lt.textContent = PITCH_FLAT[pc];
+          }
+        }
+        if (pc === focusP){
+          el('circle', { class:'g-focus', cx:x, cy:y, r:13.5 }, g);
+        }
+      }
+      markerPts.push({ x, y, pc });
+    }
+  }
+}
+
+guitar.addEventListener('click', e => {
+  const pt = svgPoint(guitar, e);
+  let best = null, bd = 13 * 13;
+  for (const m of markerPts){
+    const dx = m.x - pt.x, dy = m.y - pt.y, d = dx * dx + dy * dy;
+    if (d < bd){ bd = d; best = m; }
+  }
+  if (best) toggleFocusPc(best.pc, null);
+});
+
+/* ============================================================
+   Init
+   ============================================================ */
+render();
+</script>
+
+<script>
+'use strict';
+// ===== Headless smoke tests (test copy only) =====
+window.addEventListener('load', function(){
+  const results = [];
+  const t = (name, cond) => results.push((cond ? 'PASS ' : 'FAIL ') + name);
+
+  try {
+    // Initial chord: major rooted at 1.
+    t('initial chord pcs {0,4,7}', !!lastChord && lastChord.rootPc === 0 &&
+      lastChord.pcs.has(4) && lastChord.pcs.has(7) && lastChord.pcs.size === 3);
+
+    // Inversion 1: bass must be 3 (pc 4) at node (0,1) -> x=46.
+    state.inversion = 1; render();
+    t('inv1 voicing starts with 3', lastChord.voicingPcs[0] === 4);
+    const m = bassRing.style.transform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+    t('inv1 bass ring at (46,-79.67)', !!m && Math.abs(+m[1] - 46) < 1 && Math.abs(+m[2] + 79.67) < 1);
+
+    // Inversion 2: bass 5 (pc 7) at node (1,0) -> x=92.
+    state.inversion = 2; render();
+    t('inv2 voicing starts with 5', lastChord.voicingPcs[0] === 7);
+    const m2 = bassRing.style.transform.match(/translate\(([-\d.]+)px/);
+    t('inv2 bass ring at x=92', !!m2 && Math.abs(+m2[1] - 92) < 1);
+    state.inversion = 0; render();
+
+    // Blues mode: violet nodes for 3, 6, 10.
+    state.blues = true; render();
+    t('blues violet nodes >= 3', document.querySelectorAll('.node.blue').length >= 3);
+
+    // Focus (local center) on degree 5.
+    toggleFocusPc(7, nearestNodeWithPc(7));
+    t('focus pc = 7', state.focusPc === 7);
+    let relShown = 0;
+    document.querySelectorAll('.node .rel').forEach(r => { if (r.style.display !== 'none') relShown++; });
+    t('rel labels shown on 35 nodes', relShown === 35);
+
+    // Diminished: collinear overlay.
+    state.blues = false; clearFocus();
+    state.quality = 'dim'; render();
+    t('dim collinear line shown', lastChord.collinear === true && triLine.style.display !== 'none');
+
+    // Augmented: collinear along M3 axis.
+    state.quality = 'aug'; render();
+    t('aug collinear', lastChord.collinear === true);
+
+    // Guitar mode.
+    state.quality = 'maj'; state.guitar = true;
+    document.getElementById('guitarPanel').hidden = false; render();
+    t('guitar markers > 60', gMarkers.childNodes.length > 60);
+    t('guitar chord dots >= 15', document.querySelectorAll('.g-mark.chord').length >= 15);
+
+    // Simulated clicks via client-coordinate mapping.
+    function userToClient(x, y){
+      const r = net.getBoundingClientRect();
+      const vb = net.viewBox.baseVal;
+      const s = Math.min(r.width / vb.width, r.height / vb.height);
+      const ox = (r.width - vb.width * s) / 2, oy = (r.height - vb.height * s) / 2;
+      return { x: r.left + ox + (x - vb.x) * s, y: r.top + oy + (y - vb.y) * s };
+    }
+    function clickAt(x, y){
+      const c = userToClient(x, y);
+      net.dispatchEvent(new MouseEvent('click', { clientX:c.x, clientY:c.y, bubbles:true }));
+    }
+    // Up-triangle centroid of root (0,0): major, root 1.
+    clickAt(46, -26.57);
+    t('triangle click -> maj root 1', state.quality === 'maj' && state.chordRoot === 0);
+    // Down-triangle centroid with corners (0,1),(1,0),(1,1): minor rooted at (0,1)=pc4.
+    clickAt(92, -53.11);
+    t('triangle click -> min root 3(pc4)', state.quality === 'min' && state.chordRoot === 4);
+    // Vertex click on node (1,0) = degree 5: local center.
+    clickAt(92, 0);
+    t('vertex click -> focus 5', state.focusPc === 7);
+
+    // Tonic chip click (degree 5 = index 7).
+    tonicItems[7].btn.click();
+    t('tonic changed to 7', state.tonic === 7);
+
+    // Display toggles.
+    displayItems[3].btn.click();
+    t('links toggle hides edges', gEdges.style.display === 'none');
+    displayItems[3].btn.click();
+    displayItems[2].btn.click();
+    t('intervals toggle hides axis', gAxis.style.display === 'none');
+    displayItems[2].btn.click();
+
+    // Quality off hides overlays.
+    state.quality = 'off'; render();
+    t('off hides overlays', triPoly.style.display === 'none' &&
+      bassRing.style.display === 'none' && !lastChord);
+
+    // Restore a nice final visual state.
+    state.quality = 'maj'; state.blues = true; state.tonic = 0;
+    clearFocus(); render();
+  } catch (err) {
+    results.push('EXCEPTION: ' + err.message);
+  }
+
+  // Freeze transitions so the screenshot shows the true final state.
+  const st = document.createElement('style');
+  st.textContent = '*{transition:none!important;animation:none!important}';
+  document.head.appendChild(st);
+
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;top:0;left:0;z-index:99;background:#000;color:#0f0;font:13px monospace;padding:10px 14px;white-space:pre;border:2px solid #0f0';
+  d.textContent = 'SMOKE TESTS\n' + results.join('\n');
+  document.body.appendChild(d);
+});
+</script>
+</body>
+</html>
