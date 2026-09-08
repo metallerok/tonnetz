@@ -48,6 +48,7 @@ header.top{
 .brand p{font-size:12.5px;color:var(--dim);margin-top:3px}
 .tonic-block{display:flex;align-items:center;gap:10px}
 .tonic-block .lbl{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.tonic-pc{font-size:13px;font-weight:600;color:var(--gold);min-width:40px}
 .chips{display:flex;flex-wrap:wrap;gap:4px;max-width:520px}
 .chips button{
   background:var(--panel2);border:1px solid var(--border);color:var(--dim);
@@ -182,8 +183,13 @@ header.top{
 .g-mark.chord circle{fill:var(--gold)}
 .g-mark.blue circle{fill:var(--violet)}
 .g-mark.supp circle{fill:none;stroke:var(--violet);stroke-width:1.5}
-.g-lbl{fill:#171208;font-size:9px;font-weight:700;text-anchor:middle}
-.g-mark.blue .g-lbl{fill:#f0ebff}
+.g-mark.focus circle{fill:var(--cyan)}
+.g-lbl{
+  fill:#171208;font-size:9px;font-weight:700;text-anchor:middle;
+  paint-order:stroke;stroke:rgba(11,14,19,.6);stroke-width:2px;
+}
+.g-mark.blue .g-lbl{fill:#f0ebff;stroke:rgba(11,14,19,.75)}
+.g-mark.focus .g-lbl{fill:#062530}
 .g-letter{fill:var(--faint);font-size:8px;text-anchor:middle}
 .g-focus{fill:none;stroke:var(--cyan);stroke-width:2}
 
@@ -235,6 +241,7 @@ footer.info li .ax{color:#aeb8c9}
   <div class="tonic-block">
     <span class="lbl">tonic</span>
     <div class="chips" id="tonicRow"></div>
+    <span class="tonic-pc" id="tonicPc"></span>
   </div>
 </header>
 
@@ -350,7 +357,7 @@ const state = {
   guitar: false,
   focusPc: null,     // degree offset of the local center (null = off)
   focusNode: null,   // lattice node instance carrying the focus ring
-  show: { deg:true, fn:true, int:true, links:true, letters:false }
+  show: { fn:true, int:true, voice:true, letters:false }
 };
 
 /* ============================================================
@@ -524,7 +531,6 @@ function render(){
   const chord = computeChord();
   lastChord = chord;
 
-  gEdges.style.display = state.show.links ? '' : 'none';
   gAxis.style.display = state.show.int ? '' : 'none';
 
   for (const n of nodes){
@@ -543,7 +549,6 @@ function render(){
     const nm = DEG_NAMES[n.pc];
     n.deg.textContent = nm;
     n.deg.classList.toggle('small', nm.length > 2);
-    n.deg.style.display = state.show.deg ? '' : 'none';
 
     if (state.focusPc != null && state.focusPc !== n.pc){
       const rnm = DEG_SHORT[(n.pc - state.focusPc + 12) % 12];
@@ -607,7 +612,7 @@ function updateChordOverlay(chord){
     const bn = chord.stepNode(chord.voicing[0]);
     bassRing.style.transform = 'translate(' + bn.x + 'px,' + bn.y + 'px)';
   }
-  badges.forEach(b => { b.g.style.display = show ? '' : 'none'; });
+  badges.forEach(b => { b.g.style.display = (show && state.show.voice) ? '' : 'none'; });
 
   // Quick pop when the triad definition changes.
   const sig = chord
@@ -670,9 +675,8 @@ const modeItems = buildButtons('modeRow', [
 });
 
 const displayItems = buildButtons('displayRow', [
-  { id:'deg', label:'Degrees' }, { id:'fn', label:'Functions' },
-  { id:'int', label:'Intervals' }, { id:'links', label:'Links' },
-  { id:'letters', label:'Letters' }
+  { id:'fn', label:'Functions' }, { id:'int', label:'Intervals' },
+  { id:'voice', label:'Voicing' }, { id:'letters', label:'Letters' }
 ], it => { state.show[it.id] = !state.show[it.id]; render(); });
 
 const tonicItems = buildButtons('tonicRow',
@@ -709,8 +713,8 @@ function nearestNodeWithPc(pc){
 function pulseTonic(){
   if (!centerNode || !centerNode.ringTonic) return;
   centerNode.ringTonic.animate(
-    [{ opacity:1, strokeWidth:'5px' }, { opacity:.75, strokeWidth:'1.2px' }],
-    { duration:550, easing:'ease-out' });
+    [{ opacity:1, strokeWidth:'7px' }, { opacity:.75, strokeWidth:'1.2px' }],
+    { duration:700, easing:'ease-out' });
 }
 
 function updateControls(){
@@ -719,6 +723,7 @@ function updateControls(){
   for (const it of modeItems) it.btn.classList.toggle('on', state[it.id]);
   for (const it of displayItems) it.btn.classList.toggle('on', state.show[it.id]);
   for (const it of tonicItems) it.btn.classList.toggle('on', state.tonic === it.id);
+  byId('tonicPc').textContent = '= ' + PITCH_FLAT[state.tonic];
   byId('focusInfo').textContent = state.focusPc == null
     ? 'none — click any vertex'
     : 'relative to ' + DEG_NAMES[state.focusPc];
@@ -926,12 +931,13 @@ function renderGuitar(){
       if (chordP.has(pc)) kind = 'chord';
       else if (blueP.has(pc)) kind = 'blue';
       else if (suppP.has(pc)) kind = 'supp';
+      else if (pc === focusP) kind = 'focus';
 
       if (!kind){
         el('circle', { class:'g-plain', cx:x, cy:y, r:2 }, gMarkers);
       } else {
         const g = el('g', { class:'g-mark ' + kind }, gMarkers);
-        el('circle', { cx:x, cy:y, r:(kind === 'supp' ? 4 : 10) }, g);
+        el('circle', { cx:x, cy:y, r:(kind === 'supp' ? 4 : 8.5) }, g);
         if (kind !== 'supp'){
           const t = el('text', { class:'g-lbl', x:x, y:y + 3 }, g);
           t.textContent = DEG_SHORT[(pc - state.tonic + 12) % 12];
@@ -940,8 +946,8 @@ function renderGuitar(){
             lt.textContent = PITCH_FLAT[pc];
           }
         }
-        if (pc === focusP){
-          el('circle', { class:'g-focus', cx:x, cy:y, r:13.5 }, g);
+        if (pc === focusP && kind !== 'focus'){
+          el('circle', { class:'g-focus', cx:x, cy:y, r:11.5 }, g);
         }
       }
       markerPts.push({ x, y, pc });
